@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}Shopping Cart - E-Commerce Store{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Shopping Cart</h1>
+
+    {% if cart_items %}
+    <div class="row">
+        <!-- Cart Items -->
+        <div class="col-md-8">
+            {% for item in cart_items %}
+            <div class="card mb-3 cart-item">
+                <div class="row g-0">
+                    <div class="col-md-3">
+                        {% if item.product.image %}
+                        <img src="{{ item.product.image.url }}" class="img-fluid rounded product-image" alt="{{ item.product.name }}">
+                        {% else %}
+                        <img src="{% static 'images/default-product.jpg' %}" class="img-fluid rounded product-image" alt="{{ item.product.name }}">
+                        {% endif %}
+                    </div>
+                    <div class="col-md-9">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <h5 class="card-title">
+                                    <a href="{% url 'product_detail' item.product.slug %}" class="text-decoration-none">
+                                        {{ item.product.name }}
+                                    </a>
+                                </h5>
+                                <form method="post" action="{% url 'remove_from_cart' item.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-link text-danger p-0">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </form>
+                            </div>
+                            <p class="card-text text-muted">{{ item.product.description|truncatewords:20 }}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="quantity-control">
+                                    <form method="post" action="{% url 'update_cart' item.id %}" class="d-flex align-items-center">
+                                        {% csrf_token %}
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" 
+                                                onclick="decrementQuantity('quantity_{{ item.id }}', this.form)">
+                                            <i class="fas fa-minus"></i>
+                                        </button>
+                                        <input type="number" name="quantity" id="quantity_{{ item.id }}" 
+                                               class="form-control form-control-sm text-center mx-2" 
+                                               value="{{ item.quantity }}" min="1" max="{{ item.product.stock }}"
+                                               onchange="this.form.submit()">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                onclick="incrementQuantity('quantity_{{ item.id }}', this.form)">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                <div class="text-end">
+                                    <p class="mb-0">
+                                        <span class="text-muted">Price:</span> 
+                                        ${{ item.product.price }}
+                                    </p>
+                                    <p class="mb-0">
+                                        <span class="text-muted">Subtotal:</span>
+                                        <strong>${{ item.subtotal }}</strong>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <div class="d-flex justify-content-between align-items-center mt-4">
+                <a href="{% url 'product_list' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left"></i> Continue Shopping
+                </a>
+                <form method="post" action="{% url 'clear_cart' %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger">
+                        <i class="fas fa-trash"></i> Clear Cart
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Order Summary -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Order Summary</h5>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Subtotal</span>
+                        <strong>${{ cart_total }}</strong>
+                    </div>
+                    {% if shipping_cost %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Shipping</span>
+                        <strong>${{ shipping_cost }}</strong>
+                    </div>
+                    {% endif %}
+                    {% if tax_amount %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Tax ({{ tax_rate }}%)</span>
+                        <strong>${{ tax_amount }}</strong>
+                    </div>
+                    {% endif %}
+                    <hr>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Total</span>
+                        <strong class="text-primary">${{ total_with_tax_and_shipping }}</strong>
+                    </div>
+                    <div class="d-grid">
+                        <a href="{% url 'checkout' %}" class="btn btn-primary">
+                            Proceed to Checkout
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            {% if coupons %}
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h5 class="card-title">Apply Coupon</h5>
+                    <form method="post" action="{% url 'apply_coupon' %}">
+                        {% csrf_token %}
+                        <div class="input-group">
+                            <input type="text" name="code" class="form-control" placeholder="Enter coupon code">
+                            <button type="submit" class="btn btn-outline-primary">Apply</button>
+                        </div>
+                    </form>
+                    {% if applied_coupon %}
+                    <div class="alert alert-success mt-3 mb-0">
+                        Coupon "{{ applied_coupon.code }}" applied: {{ applied_coupon.discount }}% off
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if recommended_products %}
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h5 class="card-title">You Might Also Like</h5>
+                    {% for product in recommended_products %}
+                    <div class="d-flex align-items-center mb-2">
+                        {% if product.image %}
+                        <img src="{{ product.image.url }}" class="img-thumbnail me-2" style="width: 50px;" alt="{{ product.name }}">
+                        {% else %}
+                        <img src="{% static 'images/default-product.jpg' %}" class="img-thumbnail me-2" style="width: 50px;" alt="{{ product.name }}">
+                        {% endif %}
+                        <div>
+                            <a href="{% url 'product_detail' product.slug %}" class="text-decoration-none">
+                                {{ product.name }}
+                            </a>
+                            <br>
+                            <small class="text-muted">${{ product.price }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="fas fa-shopping-cart fa-4x text-muted mb-3"></i>
+        <h2>Your cart is empty</h2>
+        <p class="text-muted">Looks like you haven't added any items to your cart yet.</p>
+        <a href="{% url 'product_list' %}" class="btn btn-primary">
+            Start Shopping
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+{% block extra_js %}
+<script>
+    function incrementQuantity(inputId, form) {
+        const input = document.getElementById(inputId);
+        const max = parseInt(input.max);
+        const currentValue = parseInt(input.value);
+        if (currentValue < max) {
+            input.value = currentValue + 1;
+            form.submit();
+        }
+    }
+
+    function decrementQuantity(inputId, form) {
+        const input = document.getElementById(inputId);
+        const currentValue = parseInt(input.value);
+        if (currentValue > 1) {
+            input.value = currentValue - 1;
+            form.submit();
+        }
+    }
+</script>
+{% endblock %}
+{% endblock %} 

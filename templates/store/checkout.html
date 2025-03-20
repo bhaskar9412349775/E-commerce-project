@@ -1,0 +1,400 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}Checkout - E-Commerce Store{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Checkout</h1>
+
+    <div class="row">
+        <!-- Checkout Forms -->
+        <div class="col-md-8">
+            <form method="post" id="checkout-form">
+                {% csrf_token %}
+                
+                <!-- Progress Steps -->
+                <div class="progress mb-4" style="height: 4px;">
+                    <div class="progress-bar" role="progressbar" style="width: 33%;" id="checkout-progress"></div>
+                </div>
+                <div class="d-flex justify-content-between mb-4">
+                    <span class="step active" id="shipping-step">1. Shipping</span>
+                    <span class="step" id="billing-step">2. Billing</span>
+                    <span class="step" id="payment-step">3. Payment</span>
+                </div>
+
+                <!-- Shipping Information -->
+                <div class="checkout-section" id="shipping-section">
+                    <h3 class="mb-3">Shipping Information</h3>
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            {% if saved_addresses %}
+                            <div class="mb-3">
+                                <label class="form-label">Select a saved address</label>
+                                <select class="form-select" id="saved-addresses" onchange="loadSavedAddress(this.value)">
+                                    <option value="">Use a new address</option>
+                                    {% for address in saved_addresses %}
+                                    <option value="{{ address.id }}">
+                                        {{ address.street }}, {{ address.city }}, {{ address.state }} {{ address.zip_code }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <hr>
+                            {% endif %}
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    {{ shipping_form.first_name|as_crispy_field }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    {{ shipping_form.last_name|as_crispy_field }}
+                                </div>
+                            </div>
+                            {{ shipping_form.street|as_crispy_field }}
+                            {{ shipping_form.apartment|as_crispy_field }}
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    {{ shipping_form.city|as_crispy_field }}
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    {{ shipping_form.state|as_crispy_field }}
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    {{ shipping_form.zip_code|as_crispy_field }}
+                                </div>
+                            </div>
+                            {{ shipping_form.phone|as_crispy_field }}
+                            
+                            {% if user.is_authenticated %}
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="save-address" name="save_address">
+                                <label class="form-check-label" for="save-address">
+                                    Save this address for future orders
+                                </label>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Shipping Method -->
+                    <h3 class="mb-3">Shipping Method</h3>
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            {% for method in shipping_methods %}
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="radio" name="shipping_method" 
+                                       id="shipping_{{ method.id }}" value="{{ method.id }}"
+                                       {% if forloop.first %}checked{% endif %}
+                                       onchange="updateOrderSummary()">
+                                <label class="form-check-label" for="shipping_{{ method.id }}">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong>{{ method.name }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ method.description }}</small>
+                                        </div>
+                                        <span>${{ method.cost }}</span>
+                                    </div>
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'cart' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-arrow-left"></i> Back to Cart
+                        </a>
+                        <button type="button" class="btn btn-primary" onclick="nextStep()">
+                            Continue to Billing <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Billing Information -->
+                <div class="checkout-section d-none" id="billing-section">
+                    <h3 class="mb-3">Billing Information</h3>
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="same-as-shipping" checked>
+                                <label class="form-check-label" for="same-as-shipping">
+                                    Same as shipping address
+                                </label>
+                            </div>
+
+                            <div id="billing-form" class="d-none">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        {{ billing_form.first_name|as_crispy_field }}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        {{ billing_form.last_name|as_crispy_field }}
+                                    </div>
+                                </div>
+                                {{ billing_form.street|as_crispy_field }}
+                                {{ billing_form.apartment|as_crispy_field }}
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        {{ billing_form.city|as_crispy_field }}
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        {{ billing_form.state|as_crispy_field }}
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        {{ billing_form.zip_code|as_crispy_field }}
+                                    </div>
+                                </div>
+                                {{ billing_form.phone|as_crispy_field }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <button type="button" class="btn btn-outline-primary" onclick="previousStep()">
+                            <i class="fas fa-arrow-left"></i> Back to Shipping
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="nextStep()">
+                            Continue to Payment <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Payment Information -->
+                <div class="checkout-section d-none" id="payment-section">
+                    <h3 class="mb-3">Payment Information</h3>
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <div id="card-element" class="mb-3">
+                                <!-- Stripe Card Element will be inserted here -->
+                            </div>
+                            <div id="card-errors" class="alert alert-danger d-none"></div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <button type="button" class="btn btn-outline-primary" onclick="previousStep()">
+                            <i class="fas fa-arrow-left"></i> Back to Billing
+                        </button>
+                        <button type="submit" class="btn btn-success" id="submit-button">
+                            <i class="fas fa-lock"></i> Place Order
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Order Summary -->
+        <div class="col-md-4">
+            <div class="card sticky-top" style="top: 20px;">
+                <div class="card-body">
+                    <h5 class="card-title">Order Summary</h5>
+                    
+                    <!-- Items -->
+                    {% for item in cart_items %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <span class="badge bg-secondary">{{ item.quantity }}x</span>
+                            {{ item.product.name }}
+                        </div>
+                        <span>${{ item.subtotal }}</span>
+                    </div>
+                    {% endfor %}
+                    
+                    <hr>
+                    
+                    <!-- Calculations -->
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Subtotal</span>
+                        <strong>${{ cart_total }}</strong>
+                    </div>
+                    
+                    {% if shipping_cost %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Shipping</span>
+                        <strong>${{ shipping_cost }}</strong>
+                    </div>
+                    {% endif %}
+                    
+                    {% if tax_amount %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Tax ({{ tax_rate }}%)</span>
+                        <strong>${{ tax_amount }}</strong>
+                    </div>
+                    {% endif %}
+                    
+                    {% if applied_coupon %}
+                    <div class="d-flex justify-content-between mb-2 text-success">
+                        <span>Discount ({{ applied_coupon.code }})</span>
+                        <strong>-${{ discount_amount }}</strong>
+                    </div>
+                    {% endif %}
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Total</span>
+                        <strong class="text-primary">${{ total_with_tax_and_shipping }}</strong>
+                    </div>
+                    
+                    {% if not applied_coupon %}
+                    <div class="mb-3">
+                        <form method="post" action="{% url 'apply_coupon' %}" class="input-group">
+                            {% csrf_token %}
+                            <input type="text" name="code" class="form-control" placeholder="Coupon code">
+                            <button type="submit" class="btn btn-outline-primary">Apply</button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+    // Initialize Stripe
+    const stripe = Stripe('{{ stripe_public_key }}');
+    const elements = stripe.elements();
+    const card = elements.create('card');
+    card.mount('#card-element');
+
+    // Handle form submission
+    const form = document.getElementById('checkout-form');
+    const submitButton = document.getElementById('submit-button');
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        submitButton.disabled = true;
+
+        const {token, error} = await stripe.createToken(card);
+
+        if (error) {
+            const errorElement = document.getElementById('card-errors');
+            errorElement.textContent = error.message;
+            errorElement.classList.remove('d-none');
+            submitButton.disabled = false;
+        } else {
+            const hiddenInput = document.createElement('input');
+            hiddenInput.setAttribute('type', 'hidden');
+            hiddenInput.setAttribute('name', 'stripeToken');
+            hiddenInput.setAttribute('value', token.id);
+            form.appendChild(hiddenInput);
+            form.submit();
+        }
+    });
+
+    // Handle saved addresses
+    function loadSavedAddress(addressId) {
+        if (!addressId) {
+            document.getElementById('checkout-form').reset();
+            return;
+        }
+
+        fetch(`/api/addresses/${addressId}/`)
+            .then(response => response.json())
+            .then(data => {
+                for (const [key, value] of Object.entries(data)) {
+                    const input = document.querySelector(`[name="shipping-${key}"]`);
+                    if (input) {
+                        input.value = value;
+                    }
+                }
+            });
+    }
+
+    // Handle billing address toggle
+    document.getElementById('same-as-shipping').addEventListener('change', function() {
+        const billingForm = document.getElementById('billing-form');
+        billingForm.classList.toggle('d-none', this.checked);
+    });
+
+    // Handle checkout steps
+    let currentStep = 1;
+    const totalSteps = 3;
+
+    function updateSteps() {
+        // Update progress bar
+        document.getElementById('checkout-progress').style.width = `${(currentStep / totalSteps) * 100}%`;
+
+        // Update step indicators
+        ['shipping', 'billing', 'payment'].forEach((step, index) => {
+            const element = document.getElementById(`${step}-step`);
+            if (index + 1 < currentStep) {
+                element.classList.add('completed');
+                element.classList.remove('active');
+            } else if (index + 1 === currentStep) {
+                element.classList.add('active');
+                element.classList.remove('completed');
+            } else {
+                element.classList.remove('active', 'completed');
+            }
+        });
+
+        // Show/hide sections
+        document.getElementById('shipping-section').classList.toggle('d-none', currentStep !== 1);
+        document.getElementById('billing-section').classList.toggle('d-none', currentStep !== 2);
+        document.getElementById('payment-section').classList.toggle('d-none', currentStep !== 3);
+    }
+
+    function nextStep() {
+        if (currentStep < totalSteps) {
+            currentStep++;
+            updateSteps();
+        }
+    }
+
+    function previousStep() {
+        if (currentStep > 1) {
+            currentStep--;
+            updateSteps();
+        }
+    }
+
+    // Handle shipping method changes
+    function updateOrderSummary() {
+        const selectedMethod = document.querySelector('input[name="shipping_method"]:checked');
+        if (selectedMethod) {
+            fetch(`/api/shipping-cost/${selectedMethod.value}/`)
+                .then(response => response.json())
+                .then(data => {
+                    // Update the order summary with new totals
+                    // This would need to be implemented based on your specific needs
+                });
+        }
+    }
+</script>
+
+<style>
+    .step {
+        color: #6c757d;
+        position: relative;
+        z-index: 1;
+    }
+
+    .step.active {
+        color: #0d6efd;
+        font-weight: bold;
+    }
+
+    .step.completed {
+        color: #198754;
+    }
+
+    .step.completed::after {
+        content: "✓";
+        margin-left: 5px;
+    }
+
+    #card-element {
+        padding: 10px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}
+{% endblock %} 

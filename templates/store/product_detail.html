@@ -1,0 +1,322 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ product.name }} - E-Commerce Store{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'product_list' %}">Products</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'product_list' %}?category={{ product.category.slug }}">{{ product.category.name }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ product.name }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <!-- Product Images -->
+        <div class="col-md-6 mb-4">
+            <div class="product-gallery">
+                <div class="main-image mb-3">
+                    {% if product.image %}
+                    <img src="{{ product.image.url }}" class="img-fluid rounded product-detail-image" alt="{{ product.name }}">
+                    {% else %}
+                    <img src="{% static 'images/default-product.jpg' %}" class="img-fluid rounded product-detail-image" alt="{{ product.name }}">
+                    {% endif %}
+                </div>
+                {% if product.additional_images.all %}
+                <div class="thumbnail-gallery d-flex gap-2">
+                    {% for image in product.additional_images.all %}
+                    <img src="{{ image.image.url }}" class="img-thumbnail" alt="{{ product.name }}"
+                         style="width: 80px; height: 80px; object-fit: cover; cursor: pointer;"
+                         onclick="updateMainImage(this.src)">
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Product Info -->
+        <div class="col-md-6">
+            <h1 class="mb-3">{{ product.name }}</h1>
+            
+            <div class="d-flex align-items-center mb-3">
+                <div class="rating me-2">
+                    {% for i in "12345"|make_list %}
+                    {% if forloop.counter <= product.average_rating %}
+                    <i class="fas fa-star"></i>
+                    {% else %}
+                    <i class="far fa-star"></i>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                <span class="text-muted">({{ product.reviews.count }} reviews)</span>
+            </div>
+
+            <h2 class="mb-3">${{ product.price }}</h2>
+            
+            {% if product.stock > 0 %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i> In Stock ({{ product.stock }} available)
+            </div>
+            {% else %}
+            <div class="alert alert-danger">
+                <i class="fas fa-times-circle"></i> Out of Stock
+            </div>
+            {% endif %}
+
+            <p class="mb-4">{{ product.description }}</p>
+
+            {% if product.stock > 0 %}
+            <form method="post" action="{% url 'add_to_cart' product.id %}" class="mb-4">
+                {% csrf_token %}
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        <div class="input-group quantity-control">
+                            <button type="button" class="btn btn-outline-secondary" onclick="decrementQuantity()">-</button>
+                            <input type="number" name="quantity" id="quantity" class="form-control text-center" value="1" min="1" max="{{ product.stock }}">
+                            <button type="button" class="btn btn-outline-secondary" onclick="incrementQuantity()">+</button>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="fas fa-cart-plus"></i> Add to Cart
+                        </button>
+                    </div>
+                </div>
+            </form>
+            {% endif %}
+
+            <!-- Product Details -->
+            <div class="product-details">
+                <h3 class="mb-3">Product Details</h3>
+                <table class="table">
+                    <tbody>
+                        <tr>
+                            <th>Category</th>
+                            <td>{{ product.category.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>SKU</th>
+                            <td>{{ product.sku }}</td>
+                        </tr>
+                        {% if product.specifications %}
+                        {% for spec in product.specifications.items %}
+                        <tr>
+                            <th>{{ spec.0 }}</th>
+                            <td>{{ spec.1 }}</td>
+                        </tr>
+                        {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reviews Section -->
+    <section class="reviews-section mt-5">
+        <h3 class="mb-4">Customer Reviews</h3>
+        
+        {% if user.is_authenticated %}
+        <button class="btn btn-primary mb-4" data-bs-toggle="modal" data-bs-target="#reviewModal">
+            Write a Review
+        </button>
+        {% else %}
+        <p class="mb-4">
+            Please <a href="{% url 'login' %}?next={{ request.path }}">login</a> to write a review.
+        </p>
+        {% endif %}
+
+        <div class="row">
+            <!-- Review Statistics -->
+            <div class="col-md-4 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h4 class="card-title">Rating Summary</h4>
+                        <h2 class="display-4 text-center">{{ product.average_rating|floatformat:1 }}</h2>
+                        <div class="rating text-center mb-3">
+                            {% for i in "12345"|make_list %}
+                            {% if forloop.counter <= product.average_rating %}
+                            <i class="fas fa-star"></i>
+                            {% else %}
+                            <i class="far fa-star"></i>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        <p class="text-center text-muted">Based on {{ product.reviews.count }} reviews</p>
+                        
+                        <!-- Rating Distribution -->
+                        {% for rating in "54321"|make_list %}
+                        {% with rating_count=product.reviews.filter.rating=rating|length %}
+                        {% with percentage=rating_count|divisibleby:product.reviews.count|multiply:100 %}
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="rating me-2">
+                                {{ rating }} <i class="fas fa-star"></i>
+                            </div>
+                            <div class="progress flex-grow-1" style="height: 8px;">
+                                <div class="progress-bar" role="progressbar" style="width: {{ percentage }}%"></div>
+                            </div>
+                            <span class="ms-2 text-muted small">{{ rating_count }}</span>
+                        </div>
+                        {% endwith %}
+                        {% endwith %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Review List -->
+            <div class="col-md-8">
+                {% for review in reviews %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="rating">
+                                {% for i in "12345"|make_list %}
+                                {% if forloop.counter <= review.rating %}
+                                <i class="fas fa-star"></i>
+                                {% else %}
+                                <i class="far fa-star"></i>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                            <small class="text-muted">{{ review.created_at|date:"F j, Y" }}</small>
+                        </div>
+                        <h5 class="card-title">{{ review.title }}</h5>
+                        <p class="card-text">{{ review.comment }}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">By {{ review.user.get_full_name|default:review.user.username }}</small>
+                            {% if review.verified_purchase %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check-circle"></i> Verified Purchase
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="alert alert-info">
+                    No reviews yet. Be the first to review this product!
+                </div>
+                {% endfor %}
+
+                <!-- Review Pagination -->
+                {% if reviews.has_other_pages %}
+                <nav aria-label="Review pagination" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if reviews.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ reviews.previous_page_number }}">Previous</a>
+                        </li>
+                        {% endif %}
+
+                        {% for num in reviews.paginator.page_range %}
+                        <li class="page-item {% if reviews.number == num %}active{% endif %}">
+                            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                        </li>
+                        {% endfor %}
+
+                        {% if reviews.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ reviews.next_page_number }}">Next</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <!-- Related Products -->
+    {% if related_products %}
+    <section class="related-products mt-5">
+        <h3 class="mb-4">Related Products</h3>
+        <div class="row">
+            {% for related in related_products %}
+            <div class="col-md-3 mb-4">
+                <div class="card product-card h-100">
+                    {% if related.image %}
+                    <img src="{{ related.image.url }}" class="card-img-top product-image" alt="{{ related.name }}">
+                    {% else %}
+                    <img src="{% static 'images/default-product.jpg' %}" class="card-img-top product-image" alt="{{ related.name }}">
+                    {% endif %}
+                    <div class="card-body">
+                        <h5 class="card-title">{{ related.name }}</h5>
+                        <p class="card-text">{{ related.description|truncatewords:15 }}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="price">${{ related.price }}</span>
+                            <div class="rating">
+                                {% for i in "12345"|make_list %}
+                                {% if forloop.counter <= related.average_rating %}
+                                <i class="fas fa-star"></i>
+                                {% else %}
+                                <i class="far fa-star"></i>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0">
+                        <a href="{% url 'product_detail' related.slug %}" class="btn btn-custom w-100">View Details</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+</div>
+
+<!-- Review Modal -->
+<div class="modal fade" id="reviewModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Write a Review</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'add_review' product.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    {{ review_form|crispy }}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit Review</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    // Quantity control
+    function incrementQuantity() {
+        const input = document.getElementById('quantity');
+        const max = parseInt(input.max);
+        const currentValue = parseInt(input.value);
+        if (currentValue < max) {
+            input.value = currentValue + 1;
+        }
+    }
+
+    function decrementQuantity() {
+        const input = document.getElementById('quantity');
+        const currentValue = parseInt(input.value);
+        if (currentValue > 1) {
+            input.value = currentValue - 1;
+        }
+    }
+
+    // Image gallery
+    function updateMainImage(src) {
+        document.querySelector('.main-image img').src = src;
+    }
+</script>
+{% endblock %}
+{% endblock %} 

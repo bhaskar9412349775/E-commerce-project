@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Order Confirmation - E-Commerce Store{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="text-center mb-5">
+                <i class="fas fa-check-circle text-success fa-4x mb-3"></i>
+                <h1 class="mb-3">Thank You for Your Order!</h1>
+                <p class="lead">Your order has been successfully placed and is being processed.</p>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="card-title mb-0">Order Details</h5>
+                        <span class="badge bg-primary">Order #{{ order.order_number }}</span>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>Order Date</h6>
+                            <p>{{ order.created_at|date:"F j, Y, g:i a" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Order Status</h6>
+                            <p>
+                                <span class="badge bg-{{ order.get_status_color }}">
+                                    {{ order.get_status_display }}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>Shipping Address</h6>
+                            <address>
+                                {{ order.shipping_address.first_name }} {{ order.shipping_address.last_name }}<br>
+                                {{ order.shipping_address.street }}<br>
+                                {% if order.shipping_address.apartment %}
+                                    {{ order.shipping_address.apartment }}<br>
+                                {% endif %}
+                                {{ order.shipping_address.city }}, {{ order.shipping_address.state }} {{ order.shipping_address.zip_code }}<br>
+                                Phone: {{ order.shipping_address.phone }}
+                            </address>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Billing Address</h6>
+                            <address>
+                                {{ order.billing_address.first_name }} {{ order.billing_address.last_name }}<br>
+                                {{ order.billing_address.street }}<br>
+                                {% if order.billing_address.apartment %}
+                                    {{ order.billing_address.apartment }}<br>
+                                {% endif %}
+                                {{ order.billing_address.city }}, {{ order.billing_address.state }} {{ order.billing_address.zip_code }}<br>
+                                Phone: {{ order.billing_address.phone }}
+                            </address>
+                        </div>
+                    </div>
+
+                    <h6 class="mb-3">Order Items</h6>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th class="text-center">Quantity</th>
+                                    <th class="text-end">Price</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in order.items.all %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if item.product.image %}
+                                            <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" 
+                                                 class="img-thumbnail me-2" style="width: 50px;">
+                                            {% else %}
+                                            <img src="{% static 'images/default-product.jpg' %}" alt="{{ item.product.name }}"
+                                                 class="img-thumbnail me-2" style="width: 50px;">
+                                            {% endif %}
+                                            <div>
+                                                <a href="{% url 'product_detail' item.product.slug %}" class="text-decoration-none">
+                                                    {{ item.product.name }}
+                                                </a>
+                                                {% if item.product.sku %}
+                                                <br>
+                                                <small class="text-muted">SKU: {{ item.product.sku }}</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">{{ item.quantity }}</td>
+                                    <td class="text-end">${{ item.price }}</td>
+                                    <td class="text-end">${{ item.get_total }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="3" class="text-end">Subtotal:</td>
+                                    <td class="text-end">${{ order.subtotal }}</td>
+                                </tr>
+                                {% if order.shipping_cost %}
+                                <tr>
+                                    <td colspan="3" class="text-end">Shipping:</td>
+                                    <td class="text-end">${{ order.shipping_cost }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if order.tax_amount %}
+                                <tr>
+                                    <td colspan="3" class="text-end">Tax ({{ order.tax_rate }}%):</td>
+                                    <td class="text-end">${{ order.tax_amount }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if order.discount_amount %}
+                                <tr class="text-success">
+                                    <td colspan="3" class="text-end">Discount:</td>
+                                    <td class="text-end">-${{ order.discount_amount }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <td colspan="3" class="text-end"><strong>Total:</strong></td>
+                                    <td class="text-end"><strong>${{ order.total }}</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">What's Next?</h5>
+                    <div class="row">
+                        <div class="col-md-4 text-center mb-3">
+                            <i class="fas fa-envelope fa-2x text-primary mb-2"></i>
+                            <h6>Order Confirmation</h6>
+                            <p class="small text-muted">
+                                We've sent a confirmation email to {{ order.email }}
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-center mb-3">
+                            <i class="fas fa-truck fa-2x text-primary mb-2"></i>
+                            <h6>Shipping Updates</h6>
+                            <p class="small text-muted">
+                                We'll notify you when your order ships
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-center mb-3">
+                            <i class="fas fa-question-circle fa-2x text-primary mb-2"></i>
+                            <h6>Need Help?</h6>
+                            <p class="small text-muted">
+                                Contact our support team
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center">
+                <a href="{% url 'order_history' %}" class="btn btn-outline-primary me-2">
+                    <i class="fas fa-history"></i> View Order History
+                </a>
+                <a href="{% url 'product_list' %}" class="btn btn-primary">
+                    <i class="fas fa-shopping-cart"></i> Continue Shopping
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

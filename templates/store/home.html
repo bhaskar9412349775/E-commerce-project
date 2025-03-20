@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}Welcome to E-Commerce Store{% endblock %}
+
+{% block content %}
+<div class="jumbotron text-center bg-light p-5 rounded">
+    <h1 class="display-4">Welcome to E-Commerce Store</h1>
+    <p class="lead">Discover amazing products at great prices!</p>
+    <hr class="my-4">
+    <p>Browse our wide selection of products or search for something specific.</p>
+    <form class="search-form mt-4" action="{% url 'product_list' %}" method="get">
+        <div class="input-group">
+            <input type="text" name="search" class="form-control" placeholder="Search products...">
+            <button class="btn btn-primary" type="submit">Search</button>
+        </div>
+    </form>
+</div>
+
+<section class="featured-categories my-5">
+    <h2 class="text-center mb-4">Shop by Category</h2>
+    <div class="row">
+        {% for category in categories %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                {% if category.image %}
+                <img src="{{ category.image.url }}" class="card-img-top product-image" alt="{{ category.name }}">
+                {% else %}
+                <img src="{% static 'images/default-category.jpg' %}" class="card-img-top product-image" alt="{{ category.name }}">
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">{{ category.name }}</h5>
+                    <p class="card-text">{{ category.description|truncatewords:20 }}</p>
+                    <a href="{% url 'product_list' %}?category={{ category.id }}" class="btn btn-custom">View Products</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="featured-products">
+    <h2 class="text-center mb-4">Featured Products</h2>
+    <div class="row">
+        {% for product in featured_products %}
+        <div class="col-md-3 mb-4">
+            <div class="card product-card">
+                {% if product.image %}
+                <img src="{{ product.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+                {% else %}
+                <img src="{% static 'images/default-product.jpg' %}" class="card-img-top product-image" alt="{{ product.name }}">
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">{{ product.name }}</h5>
+                    <p class="card-text">{{ product.description|truncatewords:15 }}</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="price">${{ product.price }}</span>
+                        <div class="rating">
+                            {% for i in "12345"|make_list %}
+                            {% if forloop.counter <= product.average_rating %}
+                            <i class="fas fa-star"></i>
+                            {% else %}
+                            <i class="far fa-star"></i>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <a href="{% url 'product_detail' product.id %}" class="btn btn-custom w-100">View Details</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <p class="text-center">No featured products available.</p>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="special-offers bg-light p-5 mt-5 rounded">
+    <h2 class="text-center mb-4">Special Offers</h2>
+    <div class="row">
+        {% for offer in special_offers %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <h3 class="card-title">{{ offer.name }}</h3>
+                    <p class="card-text">{{ offer.description }}</p>
+                    {% if offer.discount_price %}
+                    <h4 class="text-danger">Save {{ offer.discount_percentage|floatformat:0 }}%</h4>
+                    {% endif %}
+                    <a href="{% url 'product_detail' offer.id %}" class="btn btn-custom">Shop Now</a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <p class="text-center">No special offers available at the moment.</p>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %} 
